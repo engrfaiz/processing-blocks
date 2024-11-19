@@ -3,20 +3,34 @@ import json
 import numpy as np
 import sys
 
-def generate_features(implementation_version, draw_graphs, raw_data, axes, sampling_freq, scale_axes):
+def generate_features(implementation_version, draw_graphs, raw_data, axes, sampling_freq, scale_axes, samples_per_set=5):
     if (implementation_version != 1):
         raise Exception('implementation_version should be 1')
 
+    # Scale raw data if needed
     features = raw_data
     if (scale_axes != 1):
         features = raw_data * scale_axes
+
+    # Ensure the total number of inputs is divisible by samples_per_set * len(axes)
+    n_features = len(axes)
+    total_samples = len(features) // n_features
+    trimmed_samples = total_samples - (total_samples % samples_per_set)
+    features = features[:trimmed_samples * n_features]  # Trim excess inputs
+
+    # Reshape into sets of samples_per_set
+    features = features.reshape(-1, samples_per_set, n_features)  # Shape: (sets, samples_per_set, n_features)
 
     return {
         'features': features,
         'graphs': [],
         'fft_used': [],
-        'output_config': { 'type': 'flat', 'shape': { 'width': len(raw_data) } }
+        'output_config': {
+            'type': 'flat',
+            'shape': {'sets': features.shape[0], 'samples_per_set': samples_per_set, 'n_features': n_features},
+        },
     }
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Returns raw data')
